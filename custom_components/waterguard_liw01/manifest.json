@@ -1,7 +1,7 @@
 {
   "domain": "waterguard_liw01",
   "name": "Water Guardian LIW-01",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "documentation": "https://github.com/mackowskim/waterguard-liw01",
   "issue_tracker": "https://github.com/mackowskim/waterguard-liw01/issues",
   "codeowners": ["@mackowskim"],

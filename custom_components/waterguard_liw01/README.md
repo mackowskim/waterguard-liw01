@@ -1,24 +1,18 @@
-# Water Guardian LIW-01 Integration
+# Water Guardian LIW-01
 
-Author: M4hSzyna (@mackowskim)
+Integracja Home Assistant dla licznika wody ZAMEL LIW-01, z automatycznym tworzeniem helperów dla blueprint Water Guardian.
 
-## Features
+## Funkcje
 
-- Automatic detection of LIW-01 devices via MQTT
-- Creates all required input helpers for Water Guardian blueprint
-- Creates sensors:
-  - `sensor.waterguard_liw01_total_value` – total water usage (m³ or L)
-  - `sensor.waterguard_liw01_total_cost` – total cost in PLN
-- Creates `utility_meter.waterguard_liw01_hourly_consumption` automatically
-- Input helpers for streaks and EMA (English names)
+- Automatyczne wykrywanie LIW-01 po MQTT
+- Tworzy 24 input_number godzinowe + EMA 14-dniową
+- Tworzy utility_meter hourly
+- EMA aktualizowana w **59 minucie każdej godziny**
+- Kompatybilne z blueprint Water Guardian
+- Obsługa zarówno jednostek m³ jak i L
 
-## Installation via HACS
+## Instalacja przez HACS
 
-1. Add repository: `https://github.com/mackowskim/hacs-liw01`  
-2. Install `Water Guardian LIW-01`  
-3. Restart Home Assistant  
-
-## Usage with Blueprint
-
-- `water_hour_meter` → `utility_meter.waterguard_liw01_hourly_consumption`
-- `notify_device`, `notify_device_secondary`, `media_players` → any HA entities
+1. Dodaj repo: `https://github.com/mackowskim/waterguard-liw01`
+2. Wybierz wersję `v0.1.3` w HACS
+3. Dodaj integrację przez UI lub YAML

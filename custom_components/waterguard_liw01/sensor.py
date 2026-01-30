@@ -1,118 +1,78 @@
-"""Water Guardian LIW-01 sensors – dynamic MQTT detection
-Author: M4hSzyna (@mackowskim)
-"""
+"""Sensors for Water Guardian LIW-01 with EMA calculation."""
 
-import json
-from homeassistant.components.sensor import SensorEntity
-from homeassistant.components.mqtt import async_subscribe
-from homeassistant.core import callback, HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity import Entity
+from homeassistant.core import HomeAssistant
+import datetime
+import asyncio
 
-async def async_setup_platform(hass: HomeAssistant, config, async_add_entities: AddEntitiesCallback, discovery_info=None):
-    """Add dynamic Water Guardian LIW-01 sensors."""
-    async_add_entities([
-        WaterGuardLIW01ValueSensor(hass),
-        WaterGuardLIW01CostSensor(hass)
-    ])
+async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities):
+    sensors = [WaterGuardianValueSensor(hass)]
+    async_add_entities(sensors)
 
-class WaterGuardLIW01ValueSensor(SensorEntity):
-    """Total water value (m³ or L) from LIW-01."""
+class WaterGuardianValueSensor(Entity):
+    """Water consumption sensor with hourly EMA."""
 
-    _attr_name = "Water Guardian LIW-01 Total Value"
-    _attr_unit_of_measurement = "m³"
-    _attr_icon = "mdi:water-pump"
-
-    def __init__(self, hass: HomeAssistant):
+    def __init__(self, hass):
         self._state = None
+        self._name = "Water Guardian LIW-01 Value"
         self.hass = hass
+        hass.loop.create_task(self.hourly_ema_loop())
 
-        topic_pattern = "homeassistant/sensor/+/+/config"
-        hass.async_create_task(self.subscribe_config(topic_pattern))
-
-    async def subscribe_config(self, topic_pattern):
-        @callback
-        def config_received(msg):
-            try:
-                data = json.loads(msg.payload)
-                if data.get("device", {}).get("name") != "ZAMEL LIW-01":
-                    return
-                if data.get("dev_cla") != "water":
-                    return
-
-                base = data.get("~")
-                stat_t = data.get("stat_t", "")
-                unit = data.get("unit_of_meas", "m³")
-
-                stat_topic = base + stat_t.replace("~/", "/")
-
-                # Subskrypcja stanu
-                async def value_received(msg2):
-                    try:
-                        val = float(msg2.payload)
-                        if unit.lower() in ["m³", "m3", "m^3"]:
-                            val *= 1000  # m³ -> L
-                            self._attr_unit_of_measurement = "L"
-                        else:
-                            self._attr_unit_of_measurement = unit
-                        self._state = round(val, 3)
-                        self.schedule_update_ha_state()
-                    except Exception:
-                        pass
-
-                self.hass.async_create_task(async_subscribe(self.hass, stat_topic, value_received))
-            except Exception:
-                pass
-
-        self.hass.async_create_task(async_subscribe(self.hass, topic_pattern, config_received))
+    @property
+    def name(self):
+        return self._name
 
     @property
     def state(self):
         return self._state
 
-class WaterGuardLIW01CostSensor(SensorEntity):
-    """Total water cost (PLN) from LIW-01."""
+    async def async_update(self):
+        """Fetch latest LIW-01 value from MQTT discovery."""
+        for entity in self.hass.states.async_all().values():
+            if "supla" in entity.entity_id and "calculated_value" in entity.entity_id:
+                self._state = float(entity.state)
+                await self.hass.services.async_call(
+                    "input_number",
+                    "set_value",
+                    {"entity_id": "input_number.waterguard_liw01_last_hour", "value": self._state}
+                )
 
-    _attr_name = "Water Guardian LIW-01 Total Cost"
-    _attr_unit_of_measurement = "PLN"
-    _attr_icon = "mdi:currency-usd"
+    async def hourly_ema_loop(self):
+        """Update EMA in 59th minute of each hour."""
+        while True:
+            now = datetime.datetime.now()
+            if now.minute == 59:
+                await self.update_hourly_ema()
+                await asyncio.sleep(61)  # avoid double calculation
+            else:
+                await asyncio.sleep(10)
 
-    def __init__(self, hass: HomeAssistant):
-        self._state = None
-        self.hass = hass
+    async def update_hourly_ema(self):
+        now = datetime.datetime.now()
+        current_hour = now.hour
 
-        topic_pattern = "homeassistant/sensor/+/+/config"
-        hass.async_create_task(self.subscribe_config(topic_pattern))
+        try:
+            current_value = float(self.hass.states.get(f"input_number.waterguard_liw01_hour_{current_hour}").state)
+        except:
+            current_value = 0.0
 
-    async def subscribe_config(self, topic_pattern):
-        @callback
-        def config_received(msg):
-            try:
-                data = json.loads(msg.payload)
-                if data.get("device", {}).get("name") != "ZAMEL LIW-01":
-                    return
-                if data.get("dev_cla") != "monetary":
-                    return
+        try:
+            prev_ema = float(self.hass.states.get("input_number.waterguard_liw01_avg_hourly").state)
+        except:
+            prev_ema = 0.0
 
-                base = data.get("~")
-                stat_t = data.get("stat_t", "")
+        N = 14
+        k = 2 / (N + 1)
+        ema = (current_value * k) + (prev_ema * (1 - k))
 
-                stat_topic = base + stat_t.replace("~/", "/")
+        await self.hass.services.async_call(
+            "input_number",
+            "set_value",
+            {"entity_id": "input_number.waterguard_liw01_avg_hourly", "value": round(ema,1)}
+        )
 
-                # Subskrypcja stanu
-                async def cost_received(msg2):
-                    try:
-                        val = float(msg2.payload)
-                        self._state = round(val, 2)
-                        self.schedule_update_ha_state()
-                    except Exception:
-                        pass
-
-                self.hass.async_create_task(async_subscribe(self.hass, stat_topic, cost_received))
-            except Exception:
-                pass
-
-        self.hass.async_create_task(async_subscribe(self.hass, topic_pattern, config_received))
-
-    @property
-    def state(self):
-        return self._state
+        await self.hass.services.async_call(
+            "input_number",
+            "set_value",
+            {"entity_id": f"input_number.waterguard_liw01_hour_{current_hour}", "value": current_value}
+        )

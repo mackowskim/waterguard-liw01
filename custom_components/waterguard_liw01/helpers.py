@@ -1,61 +1,36 @@
-"""Water Guardian LIW-01 helpers
-Author: M4hSzyna (@mackowskim)
-"""
-
+"""Helper creation for Water Guardian LIW-01, including EMA."""
 from homeassistant.core import HomeAssistant
 
 async def setup_helpers(hass: HomeAssistant):
-    """Create all input_number and input_datetime helpers needed by Water Guardian."""
+    """Create input_number and utility_meter for Water Guardian LIW-01."""
 
-    # Input datetime – last alert
-    if "input_datetime.waterguard_last_alert" not in hass.states.async_entity_ids():
+    # Input numbers – główne
+    input_numbers = {
+        "waterguard_liw01_last_hour": {"name": "Water Guardian – last hour [L]", "min":0,"max":5000,"step":1,"unit_of_measurement":"L"},
+        "waterguard_liw01_leak_streak": {"name": "Water Guardian – leak streak [h]", "min":0,"max":24,"step":1,"unit_of_measurement":"h"},
+        "waterguard_liw01_zero_hour_streak": {"name": "Water Guardian – zero hour streak [h]", "min":0,"max":24,"step":1,"unit_of_measurement":"h"},
+        "waterguard_liw01_avg_hourly": {"name": "Water Guardian – EMA 14d hourly", "min":0,"max":5000,"step":1,"unit_of_measurement":"L"},
+    }
+
+    # 24 input_number godzinowe
+    for h in range(24):
+        entity_id = f"waterguard_liw01_hour_{h}"
+        input_numbers[entity_id] = {"name": f"Water Guardian – hour {h}", "min":0,"max":5000,"step":1,"unit_of_measurement":"L"}
+
+    # Tworzenie encji jeśli nie istnieją
+    for entity_id, config in input_numbers.items():
+        if not hass.states.get(f"input_number.{entity_id}"):
+            await hass.services.async_call("input_number", "create", config)
+
+    # Utility meter – hourly, zlicza całkowite zużycie LIW-01
+    if not hass.states.get("sensor.waterguard_liw01_hourly_meter"):
         await hass.services.async_call(
-            "input_datetime",
+            "utility_meter",
             "create",
             {
-                "name": "Water Guardian Last Alert",
-                "has_date": True,
-                "has_time": True,
-                "entity_id": "input_datetime.waterguard_last_alert"
-            },
-            blocking=True
+                "name": "Water Guardian – hourly meter",
+                "source": "sensor.waterguard_liw01_value",
+                "cycle": "hourly",
+                "tariffs": ["hourly"]
+            }
         )
-
-    # Input numbers – streaks
-    for name, friendly in [
-        ("waterguard_leak_streak", "Leak Streak"),
-        ("waterguard_zero_hour_streak", "Zero Hour Streak")
-    ]:
-        entity_id = f"input_number.{name}"
-        if entity_id not in hass.states.async_entity_ids():
-            await hass.services.async_call(
-                "input_number",
-                "create",
-                {
-                    "name": friendly,
-                    "min": 0,
-                    "max": 100,
-                    "step": 1,
-                    "mode": "box",
-                    "entity_id": entity_id
-                },
-                blocking=True
-            )
-
-    # EMA hourly consumption – 24 input_numbers
-    for h in range(24):
-        entity_id = f"input_number.waterguard_hourly_consumption_{h}"
-        if entity_id not in hass.states.async_entity_ids():
-            await hass.services.async_call(
-                "input_number",
-                "create",
-                {
-                    "name": f"Hourly Consumption {h}:00",
-                    "min": 0,
-                    "max": 500,
-                    "step": 1,
-                    "mode": "box",
-                    "entity_id": entity_id
-                },
-                blocking=True
-            )

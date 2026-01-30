@@ -14,17 +14,14 @@ class WaterGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step."""
         errors = {}
 
         if user_input is not None:
-            # tutaj integracja sama wykryje encję LIW-01 po MQTT
             return self.async_create_entry(
                 title=user_input[CONF_NAME],
                 data=user_input
             )
 
-        # formularz konfiguracji
         schema = vol.Schema(
             {
                 vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
