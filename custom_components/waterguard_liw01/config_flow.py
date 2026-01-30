@@ -18,7 +18,7 @@ class WaterGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            # można tu dodać weryfikację np. MQTT lub test połączenia
+            # tutaj integracja sama wykryje encję LIW-01 po MQTT
             return self.async_create_entry(
                 title=user_input[CONF_NAME],
                 data=user_input
@@ -29,7 +29,6 @@ class WaterGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
                 vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=DEFAULT_UNIT): str,
-                vol.Required("mqtt_prefix", default="supla/..."): str,
                 vol.Optional("currency", default="PLN"): str,
             }
         )
