@@ -1,0 +1,7 @@
+{
+    "name": "Water Guardian LIW-01",
+    "content_in_root": false,
+    "domain": "waterguard_liw01",
+    "documentation": "https://github.com/mackowskim/waterguard-liw01",
+    "homeassistant": "integration"
+  }
