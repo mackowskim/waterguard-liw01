@@ -1,2 +1,2 @@
-# hacs-liw01
+# waterguard-liw01
 LIW01 Water Guardian Integration
