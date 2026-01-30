@@ -1,0 +1,14 @@
+{
+    "domain": "waterguard_liw01",
+    "name": "Water Guardian LIW-01",
+    "version": "0.1.0",
+    "documentation": "https://github.com/mackowskim/hacs-liw01",
+    "dependencies": ["mqtt"],
+    "requirements": [],
+    "codeowners": ["@mackowskim"],
+    "homeassistant": "2026.1.0",
+    "config_flow": false,
+    "iot_class": "local_push",
+    "categories": ["Water", "Sensor"]
+  }
+  
